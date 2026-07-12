@@ -23,7 +23,29 @@ Optional, for Android builds:
 adb version
 ```
 
+## 0.1. Run Expo Without Changing Default Node
+
+This machine's default shell currently uses Node 16, while current Expo tooling requires Node 18 or newer. To run Expo/npm commands without changing the default Node version, prefix the command with Homebrew's Node path:
+
+```sh
+PATH=/opt/homebrew/opt/node/bin:$PATH npm run lint
+```
+
+Use the same prefix for Expo commands:
+
+```sh
+PATH=/opt/homebrew/opt/node/bin:$PATH npx expo start
+```
+
+And for package installs:
+
+```sh
+PATH=/opt/homebrew/opt/node/bin:$PATH npm install package-name
+```
+
 ## 1. Create the Expo App
+
+Already completed for this repo.
 
 Run from inside this folder:
 
@@ -297,4 +319,3 @@ View recent commits:
 ```sh
 git log --oneline --decorate -5
 ```
-
