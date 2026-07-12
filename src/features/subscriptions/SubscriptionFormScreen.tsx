@@ -21,6 +21,7 @@ import {
   type BillingCycle,
   type SubscriptionInput,
 } from '@/data/subscriptions';
+import { Fonts } from '@/constants/theme';
 
 const TOKENS = {
   paper: '#F6F5F1',
@@ -629,7 +630,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
   },
   monoInput: {
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+    fontFamily: Fonts.mono,
   },
   notesInput: {
     minHeight: 96,
@@ -657,7 +658,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   monoText: {
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+    fontFamily: Fonts.mono,
   },
   selectChevron: {
     color: TOKENS.inkSoft,
