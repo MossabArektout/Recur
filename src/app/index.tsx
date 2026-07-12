@@ -1,3 +1,3 @@
-import { SubscriptionFormScreen } from '@/features/subscriptions/SubscriptionFormScreen';
+import { DashboardScreen } from '@/features/subscriptions/DashboardScreen';
 
-export default SubscriptionFormScreen;
+export default DashboardScreen;
