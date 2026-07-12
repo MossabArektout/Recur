@@ -18,10 +18,17 @@ import {
   addSubscription,
   deleteSubscription,
   getAllSubscriptions,
+  getReminderLeadDays,
   updateSubscription,
+  updateSubscriptionNotificationIds,
   type BillingCycle,
+  type Subscription,
   type SubscriptionInput,
 } from '@/data/subscriptions';
+import {
+  cancelSubscriptionNotifications,
+  scheduleSubscriptionNotifications,
+} from '@/services/notifications';
 import { Fonts } from '@/constants/theme';
 
 const TOKENS = {
@@ -225,11 +232,18 @@ export function SubscriptionFormScreen() {
     };
 
     try {
+      const existingSubscription = editingId ? await getSubscriptionById(editingId) : null;
+
+      if (existingSubscription) {
+        await cancelSubscriptionNotifications(existingSubscription);
+      }
+
       const savedSubscription = editingId
         ? await updateSubscription(editingId, input)
         : await addSubscription(input);
+      const scheduledSubscription = await scheduleNotificationsForSubscription(savedSubscription);
 
-      console.log('[Recur saved subscription]', savedSubscription);
+      console.log('[Recur saved subscription]', scheduledSubscription);
       setSavedMessage('Saved to local database.');
     } catch (error) {
       setErrors({ form: 'Subscription could not be saved.' });
@@ -248,6 +262,8 @@ export function SubscriptionFormScreen() {
     setErrors({});
 
     try {
+      const existingSubscription = await getSubscriptionById(editingId);
+      await cancelSubscriptionNotifications(existingSubscription);
       await deleteSubscription(editingId);
       setShowDeleteConfirmation(false);
 
@@ -261,6 +277,31 @@ export function SubscriptionFormScreen() {
       console.error('[Recur subscription delete failed]', error);
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function getSubscriptionById(id: number) {
+    const subscriptions = await getAllSubscriptions();
+    const subscription = subscriptions.find((item) => item.id === id);
+
+    if (!subscription) {
+      throw new Error(`Subscription ${id} was not found.`);
+    }
+
+    return subscription;
+  }
+
+  async function scheduleNotificationsForSubscription(subscription: Subscription) {
+    try {
+      const reminderLeadDays = await getReminderLeadDays();
+      const notificationIds = await scheduleSubscriptionNotifications(subscription, reminderLeadDays);
+      return updateSubscriptionNotificationIds(subscription.id, notificationIds);
+    } catch (error) {
+      console.error('[Recur subscription notification scheduling failed]', error);
+      return updateSubscriptionNotificationIds(subscription.id, {
+        renewal_notification_id: null,
+        trial_notification_id: null,
+      });
     }
   }
 

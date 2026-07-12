@@ -19,6 +19,8 @@ export type Subscription = {
   category: string;
   is_trial: boolean;
   trial_end_date: string | null;
+  renewal_notification_id: string | null;
+  trial_notification_id: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -85,6 +87,8 @@ export async function initializeDatabase() {
       category TEXT NOT NULL DEFAULT 'Other',
       is_trial INTEGER NOT NULL DEFAULT 0,
       trial_end_date TEXT,
+      renewal_notification_id TEXT,
+      trial_notification_id TEXT,
       notes TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -103,6 +107,9 @@ export async function initializeDatabase() {
     SELECT 1
     WHERE NOT EXISTS (SELECT 1 FROM app_settings WHERE id = 1);
   `);
+
+  await ensureColumn('subscriptions', 'renewal_notification_id', 'TEXT');
+  await ensureColumn('subscriptions', 'trial_notification_id', 'TEXT');
 }
 
 export async function addSubscription(input: SubscriptionInput) {
@@ -188,6 +195,37 @@ export async function deleteSubscription(id: number) {
   return result.changes > 0;
 }
 
+export async function getReminderLeadDays() {
+  await initializeDatabase();
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ reminder_lead_days: number }>(
+    'SELECT reminder_lead_days FROM app_settings WHERE id = 1;'
+  );
+
+  return row?.reminder_lead_days ?? 3;
+}
+
+export async function updateSubscriptionNotificationIds(
+  id: number,
+  notificationIds: Pick<Subscription, 'renewal_notification_id' | 'trial_notification_id'>
+) {
+  await initializeDatabase();
+  const db = await getDatabase();
+
+  await db.runAsync(
+    `
+      UPDATE subscriptions
+      SET renewal_notification_id = ?,
+          trial_notification_id = ?,
+          updated_at = datetime('now')
+      WHERE id = ?;
+    `,
+    [notificationIds.renewal_notification_id, notificationIds.trial_notification_id, id]
+  );
+
+  return getSubscriptionById(id);
+}
+
 export function getMonthlyCost(
   subscription: Pick<Subscription, 'billing_cycle' | 'cost' | 'custom_cycle_days'>
 ) {
@@ -239,6 +277,16 @@ function mapSubscriptionRow(row: SubscriptionRow): Subscription {
     ...row,
     is_trial: row.is_trial === 1,
   };
+}
+
+async function ensureColumn(tableName: string, columnName: string, definition: string) {
+  const db = await getDatabase();
+  const columns = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${tableName});`);
+  const hasColumn = columns.some((column) => column.name === columnName);
+
+  if (!hasColumn) {
+    await db.execAsync(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition};`);
+  }
 }
 
 function normalizeValueForDatabase(column: SubscriptionColumn, value: SubscriptionUpdate[SubscriptionColumn]) {

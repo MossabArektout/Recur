@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Fonts } from '@/constants/theme';
 import { getAllSubscriptions, getMonthlyCost, type Subscription } from '@/data/subscriptions';
+import { scheduleDevTestNotification } from '@/services/notifications';
 
 const TOKENS = {
   paper: '#F6F5F1',
@@ -100,6 +101,7 @@ export function DashboardScreen() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loadState, setLoadState] = useState<LoadState>('idle');
   const [error, setError] = useState('');
+  const [devNotificationMessage, setDevNotificationMessage] = useState('');
 
   const loadSubscriptions = useCallback(async (state: LoadState = 'loading') => {
     setLoadState(state);
@@ -137,6 +139,15 @@ export function DashboardScreen() {
   const hasSubscriptions = subscriptions.length > 0;
   const isInitialLoading = loadState === 'loading' && !hasSubscriptions;
 
+  async function handleDevNotificationTest() {
+    setDevNotificationMessage('');
+
+    const identifier = await scheduleDevTestNotification();
+    setDevNotificationMessage(
+      identifier ? 'Test notification scheduled for 10 seconds from now.' : 'Notifications are off.'
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
@@ -173,6 +184,20 @@ export function DashboardScreen() {
         </View>
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+        {__DEV__ ? (
+          <View style={styles.devTools}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={handleDevNotificationTest}
+              style={({ pressed }) => [styles.devButton, pressed && styles.pressed]}>
+              <Text style={styles.devButtonText}>Schedule 10-second test notification</Text>
+            </Pressable>
+            {devNotificationMessage ? (
+              <Text style={styles.devMessage}>{devNotificationMessage}</Text>
+            ) : null}
+          </View>
+        ) : null}
 
         {isInitialLoading ? (
           <View style={styles.loadingState}>
@@ -343,6 +368,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     marginTop: 8,
+  },
+  devTools: {
+    gap: 8,
+    marginBottom: 16,
+  },
+  devButton: {
+    alignItems: 'center',
+    borderColor: TOKENS.line,
+    borderRadius: 12,
+    borderWidth: 1,
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  devButtonText: {
+    color: TOKENS.ink,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  devMessage: {
+    color: TOKENS.inkSoft,
+    fontSize: 13,
+    lineHeight: 18,
   },
   loadingState: {
     alignItems: 'center',
