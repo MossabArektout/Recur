@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
   addSubscription,
+  deleteSubscription,
   getAllSubscriptions,
   updateSubscription,
   type BillingCycle,
@@ -103,6 +104,7 @@ export function SubscriptionFormScreen() {
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [savedMessage, setSavedMessage] = useState('');
   const [activePicker, setActivePicker] = useState<{
     title: string;
@@ -111,6 +113,7 @@ export function SubscriptionFormScreen() {
     onSelect: (value: string) => void;
   } | null>(null);
   const [activeDateField, setActiveDateField] = useState<DateFieldTarget | null>(null);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -233,6 +236,31 @@ export function SubscriptionFormScreen() {
       console.error('[Recur subscription save failed]', error);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleConfirmDelete() {
+    if (!editingId) {
+      return;
+    }
+
+    setDeleting(true);
+    setErrors({});
+
+    try {
+      await deleteSubscription(editingId);
+      setShowDeleteConfirmation(false);
+
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/');
+      }
+    } catch (error) {
+      setErrors({ form: 'Subscription could not be deleted.' });
+      console.error('[Recur subscription delete failed]', error);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -407,6 +435,22 @@ export function SubscriptionFormScreen() {
             {saving ? 'Saving subscription' : 'Save subscription'}
           </Text>
         </Pressable>
+
+        {editingId ? (
+          <Pressable
+            accessibilityRole="button"
+            disabled={deleting || saving}
+            onPress={() => setShowDeleteConfirmation(true)}
+            style={({ pressed }) => [
+              styles.deleteButton,
+              (deleting || saving) && styles.saveButtonDisabled,
+              pressed && !deleting && !saving && styles.pressed,
+            ]}>
+            <Text style={styles.deleteButtonText}>
+              {deleting ? 'Deleting subscription' : 'Delete subscription'}
+            </Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
 
       <Modal
@@ -503,6 +547,51 @@ export function SubscriptionFormScreen() {
                 onPress={() => setActiveDateField(null)}
                 style={({ pressed }) => [styles.doneButton, pressed && styles.saveButtonPressed]}>
                 <Text style={styles.doneButtonText}>Done</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={() => {
+          if (!deleting) {
+            setShowDeleteConfirmation(false);
+          }
+        }}
+        transparent
+        visible={showDeleteConfirmation}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.confirmationCard}>
+            <Text style={styles.confirmationTitle}>Delete this subscription?</Text>
+            <Text style={styles.confirmationCopy}>This can&apos;t be undone.</Text>
+
+            <View style={styles.confirmationActions}>
+              <Pressable
+                accessibilityRole="button"
+                disabled={deleting}
+                onPress={() => setShowDeleteConfirmation(false)}
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  deleting && styles.saveButtonDisabled,
+                  pressed && !deleting && styles.pressed,
+                ]}>
+                <Text style={styles.secondaryButtonText}>Cancel</Text>
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="button"
+                disabled={deleting}
+                onPress={handleConfirmDelete}
+                style={({ pressed }) => [
+                  styles.confirmDeleteButton,
+                  deleting && styles.saveButtonDisabled,
+                  pressed && !deleting && styles.pressed,
+                ]}>
+                <Text style={styles.confirmDeleteButtonText}>
+                  {deleting ? 'Deleting' : 'Delete'}
+                </Text>
               </Pressable>
             </View>
           </View>
@@ -731,6 +820,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  deleteButton: {
+    alignItems: 'center',
+    backgroundColor: TOKENS.paper,
+    borderColor: TOKENS.urgent,
+    borderRadius: 12,
+    borderWidth: 1,
+    minHeight: 52,
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+  },
+  deleteButtonText: {
+    color: TOKENS.urgent,
+    fontSize: 16,
+    fontWeight: '600',
+  },
   secondaryButton: {
     alignItems: 'center',
     borderColor: TOKENS.line,
@@ -786,6 +891,15 @@ const styles = StyleSheet.create({
     padding: 16,
     width: '100%',
   },
+  confirmationCard: {
+    backgroundColor: TOKENS.surfaceCard,
+    borderColor: TOKENS.line,
+    borderRadius: 12,
+    borderWidth: 1,
+    maxWidth: 420,
+    padding: 16,
+    width: '100%',
+  },
   modalTitle: {
     color: TOKENS.ink,
     fontSize: 16,
@@ -813,5 +927,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     paddingTop: 16,
+  },
+  confirmationTitle: {
+    color: TOKENS.ink,
+    fontSize: 18,
+    fontWeight: '600',
+    lineHeight: 24,
+    marginBottom: 6,
+  },
+  confirmationCopy: {
+    color: TOKENS.inkSoft,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  confirmationActions: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingTop: 20,
+  },
+  confirmDeleteButton: {
+    alignItems: 'center',
+    borderColor: TOKENS.urgent,
+    borderRadius: 12,
+    borderWidth: 1,
+    flex: 1,
+    minHeight: 48,
+    justifyContent: 'center',
+  },
+  confirmDeleteButtonText: {
+    color: TOKENS.urgent,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
