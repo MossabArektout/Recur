@@ -2,10 +2,9 @@ import { addYears, differenceInCalendarDays } from 'date-fns';
 import { openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
 
 const DATABASE_NAME = 'recur.db';
-const SMOKE_TEST_NOTE = 'TEMP_SMOKE_TEST';
+const ENABLE_DATA_LAYER_DEBUG_LOG = false;
 
 let databasePromise: Promise<SQLiteDatabase> | null = null;
-let hasRunSmokeTest = false;
 
 export type BillingCycle = 'weekly' | 'monthly' | 'yearly' | 'custom';
 
@@ -207,57 +206,14 @@ export function getMonthlyCost(
   }
 }
 
-export async function runDataLayerSmokeTest() {
-  if (hasRunSmokeTest) {
+export async function logSubscriptionsForDebugging() {
+  if (!ENABLE_DATA_LAYER_DEBUG_LOG) {
     return;
   }
 
-  hasRunSmokeTest = true;
-
-  await initializeDatabase();
-
-  const existingSubscriptions = await getAllSubscriptions();
-  for (const subscription of existingSubscriptions) {
-    if (subscription.notes === SMOKE_TEST_NOTE) {
-      await deleteSubscription(subscription.id);
-    }
-  }
-
-  await addSubscription({
-    name: 'Netflix',
-    cost: 15.99,
-    currency: 'USD',
-    billing_cycle: 'monthly',
-    next_renewal_date: '2026-08-05',
-    category: 'Streaming',
-    notes: SMOKE_TEST_NOTE,
-  });
-
-  await addSubscription({
-    name: 'GitHub Copilot',
-    cost: 10,
-    currency: 'USD',
-    billing_cycle: 'monthly',
-    next_renewal_date: '2026-08-12',
-    category: 'Software/SaaS',
-    notes: SMOKE_TEST_NOTE,
-  });
-
-  await addSubscription({
-    name: 'Fitness Trial',
-    cost: 79.99,
-    currency: 'USD',
-    billing_cycle: 'yearly',
-    next_renewal_date: '2026-09-01',
-    category: 'Fitness',
-    is_trial: true,
-    trial_end_date: '2026-07-20',
-    notes: SMOKE_TEST_NOTE,
-  });
-
   const subscriptions = await getAllSubscriptions();
   console.log(
-    '[Recur data layer smoke test]',
+    '[Recur subscriptions debug]',
     subscriptions.map((subscription) => ({
       ...subscription,
       monthly_cost: Number(getMonthlyCost(subscription).toFixed(2)),
